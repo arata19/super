@@ -89,48 +89,67 @@ if ($_SERVER["REQUEST_METHOD"] == "POST"){
 								$Rlayout = str_replace($nama, $value, $isi);
 								$isi = $Rlayout;
 							}
-						}
-						
+						}										
+						$key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.e30.6UeJp52ITYbGsfOCWrzUkfyNU2tbmeu6wpKaFqlRlY0';
+						$token_key = array('authorization:' . $key);					
 						if($tujuan != '' OR $tujuan != 'null'){
-							$mail = new PHPMailer;
-							$mail->isSMTP();
-							$mail->SMTPDebug = 0;
-							$mail->Debugoutput = 'html';
-							$mail->Host = 'localhost';
-							$mail->SMTPAuth = true;
-							$mail->Username = $dataEmailAccount->email;
-							$mail->Password = $dataEmailAccount->pass_email;
-							
-							$mail->From = $dataEmailAccount->email;
-							$mail->FromName = $_SESSION['nama'];
-							$mail->smtpConnect(
-								array(
-									"ssl" => array(
-										"verify_peer" => false,
-										"verify_peer_name" => false,
-										"allow_self_signed" => true
-									)
-								)
-							);
 							foreach($dataTujuan as $id_tujuan){
 								$params = array(':id_user' => $id_tujuan);
 								$user_tujuan = $this->model->selectprepare("user", $field=null, $params, "id_user=:id_user", $other=null);
 								$data_user_tujuan= $user_tujuan->fetch(PDO::FETCH_OBJ);
 								if($data_user_tujuan->email != ''){
-									$mail->AddAddress($data_user_tujuan->email, $data_user_tujuan->nama);
+									$nama = $data_user_tujuan->nama;
+									##SEND EMAIL DULU ##
+									$url = 'https://simtepa.badilag.net/api/send_email';
+
+									$email = array();
+									$email['cek']	= true;
+									$email['email']	= $data_user_tujuan->email;
+									$email['title']	= 'Pemberitahuan Surat Masuk - PA JAKARTA TIMUR';
+
+									$email['isi_pesan'] = $isi;
+			
+									$ch = curl_init($url);
+									curl_setopt( $ch, CURLOPT_POST, 1);
+									curl_setopt( $ch, CURLOPT_POSTFIELDS,$email);
+									curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, 1);
+									curl_setopt($ch, CURLOPT_HTTPHEADER, $token_key);
+									curl_setopt( $ch, CURLOPT_HEADER, 0);
+									curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1);
+									curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false);
+									$response = curl_exec($ch);
+									$err = curl_error($ch);
+									
+									curl_close($ch);
 								}
+								if($data_user_tujuan->no_hp != ''){
+									$url = 'https://simtepa.badilag.net/api/send_wa';
+									$wa = array();
+									$wa['cek']		= true;
+									$wa['nowa']		= $data_user_tujuan->no_hp;
+									$wa['app']		= 'PERSURATAN - SUPER';
+									$wa['pesan']	= $isi;
+						
+									
+									$ch = curl_init($url);
+									curl_setopt( $ch, CURLOPT_POST, 1);
+									curl_setopt( $ch, CURLOPT_POSTFIELDS,$wa);
+									curl_setopt( $ch, CURLOPT_FOLLOWLOCATION, 1);
+									curl_setopt($ch, CURLOPT_HTTPHEADER, $token_key);
+									curl_setopt( $ch, CURLOPT_HEADER, 0);
+									curl_setopt( $ch, CURLOPT_RETURNTRANSFER, 1);
+									curl_setopt( $ch, CURLOPT_SSL_VERIFYPEER, false);
+									$response = curl_exec($ch);
+									$err = curl_error($ch);
+									
+									curl_close($ch);
+								}
+								// echo "<script type=\"text/javascript\">alert('Data Berhasil diSimpan, Email notifikasi dikirim!');window.location.href=\"./index.php?op=add_sm\";</script>";
 							}
-							$mail->isHTML(true);
-							$topik = "Surat Masuk: ".$perihal;
-							$mail->Subject = $topik;
-							$mail->Body = $isi;
-							$mail->AltBody = $perihal;
-							if(!$mail->send()) {
-								//echo "Mailer Error: " . $mail->ErrorInfo;
-								echo "<script type=\"text/javascript\">alert('Data Berhasil diSimpan. Email notifikasi gagal dikirim!');window.location.href=\"./index.php?op=add_sm\";</script>";
-							}else{
-								echo "<script type=\"text/javascript\">alert('Data Berhasil diSimpan, Email notifikasi dikirim!');window.location.href=\"./index.php?op=add_sm\";</script>";
-							}
+							echo '<pre>';
+							print_r($isi);
+							echo '</pre>';
+							die();
 						}else{
 							echo "<script type=\"text/javascript\">alert('Data Berhasil diSimpan!');window.location.href=\"./index.php?op=add_sm\";</script>";
 						}
